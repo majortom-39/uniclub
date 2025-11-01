@@ -34,13 +34,18 @@ const fs = require('fs');
 // Set up media uploads directory
 const uploadsDir = path.join(__dirname, '../public/uploads/social');
 console.log('📁 Uploads directory path:', uploadsDir);
-console.log('📁 Directory exists:', fs.existsSync(uploadsDir));
-console.log('📁 Directory is writable:', fs.accessSync ? fs.accessSync(uploadsDir, fs.constants.W_OK) : 'Unknown');
 
-if (!fs.existsSync(uploadsDir)) {
-  console.log('📁 Creating uploads directory...');
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 Directory created successfully');
+// Only check/create directory in local development (not in serverless)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('📁 Directory exists:', fs.existsSync(uploadsDir));
+  
+  if (!fs.existsSync(uploadsDir)) {
+    console.log('📁 Creating uploads directory...');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Directory created successfully');
+  }
+} else {
+  console.log('📁 Running in production - skipping file system checks');
 }
 
 // Enhanced multer configuration for images and videos
