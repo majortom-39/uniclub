@@ -23,8 +23,11 @@
       "dest": "/dist/Assets/$1"
     },
     {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|json|woff|woff2|ttf|eot))",
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|json|woff|woff2|ttf|eot|txt|map))",
       "dest": "/dist/$1"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
