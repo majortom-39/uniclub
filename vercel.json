@@ -15,27 +15,18 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/uniclub-backend/index.js"
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1",
-      "continue": true
-    },
-    {
-      "src": "/Assets/(.*)",
-      "dest": "/Assets/$1",
-      "continue": true
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "^/(?!api/).*",
-      "dest": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "uniclub-backend/index.js"
     }
   ],
   "env": {
