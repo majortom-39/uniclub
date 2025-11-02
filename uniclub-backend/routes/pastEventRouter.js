@@ -17,7 +17,7 @@ router.get('/', async (req, res) => {
 // POST /api/past-events - Create a new past event (protected)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { poster, title, subtitle, date, body, category, attendance, tags } = req.body;
+    const { poster, title, subtitle, date, body, category, attendance, tags, link, gallery } = req.body;
     
     if (!poster || !title || !subtitle || !date || !body) {
       return res.status(400).json({ 
@@ -34,7 +34,9 @@ router.post('/', authenticateToken, async (req, res) => {
       body,
       category,
       attendance,
-      tags
+      tags,
+      link,
+      gallery
     });
     
     await pastEvent.save();
@@ -84,6 +86,40 @@ router.get('/:id/poster', async (req, res) => {
   }
 });
 
+// GET /api/past-events/:id/gallery/:imageIndex - Serve gallery image by index
+router.get('/:id/gallery/:imageIndex', async (req, res) => {
+  try {
+    const pastEvent = await PastEvent.findById(req.params.id).select('gallery');
+    const imageIndex = parseInt(req.params.imageIndex);
+    
+    if (!pastEvent || !pastEvent.gallery || pastEvent.gallery.length === 0) {
+      return res.status(404).json({ error: 'Gallery not found' });
+    }
+    
+    if (imageIndex < 0 || imageIndex >= pastEvent.gallery.length) {
+      return res.status(404).json({ error: 'Image not found in gallery' });
+    }
+    
+    const image = pastEvent.gallery[imageIndex];
+    
+    if (!image || !image.data) {
+      return res.status(404).json({ error: 'Image data not found' });
+    }
+
+    // Extract base64 data (remove data:image/png;base64, prefix)
+    const base64Data = image.data.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    res.set('Content-Type', image.contentType);
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Gallery image serve error:', error);
+    res.status(500).json({ error: 'Failed to retrieve gallery image' });
+  }
+});
+
 // GET /api/past-events/:id - Get a specific past event
 router.get('/:id', async (req, res) => {
   try {
@@ -101,11 +137,11 @@ router.get('/:id', async (req, res) => {
 // PUT /api/past-events/:id - Update a past event (protected)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const { poster, title, subtitle, date, body, category, attendance, tags } = req.body;
+    const { poster, title, subtitle, date, body, category, attendance, tags, link, gallery } = req.body;
     
     const pastEvent = await PastEvent.findByIdAndUpdate(
       req.params.id,
-      { poster, title, subtitle, date, body, category, attendance, tags },
+      { poster, title, subtitle, date, body, category, attendance, tags, link, gallery },
       { new: true, runValidators: true }
     );
     

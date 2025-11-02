@@ -51,6 +51,29 @@ const pastEventSchema = new mongoose.Schema({
   // Tags for searchability
   tags: [{ 
     type: String 
+  }],
+  
+  // Recording/Video Link (YouTube, etc.)
+  link: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        // Optional field - if provided, should be a valid URL
+        if (!v) return true;
+        return /^https?:\/\/.+/.test(v);
+      },
+      message: 'Link must be a valid URL'
+    }
+  },
+  
+  // Gallery - Multiple images from the event
+  gallery: [{
+    data: { type: String, required: true },           // Base64 image data
+    contentType: { type: String, required: true },     // MIME type (e.g., 'image/png')
+    originalName: { type: String },                     // Original filename
+    size: { type: Number },                              // File size in bytes
+    uploadedAt: { type: Date, default: Date.now },      // Upload timestamp
+    caption: { type: String, maxlength: 200 }           // Optional caption for the image
   }]
 
 }, { 
