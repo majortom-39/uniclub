@@ -158,18 +158,18 @@ const EventGallery: React.FC<EventGalleryProps> = ({ eventId, gallery }) => {
 
           {/* Main Image */}
           <div
-            className="relative max-w-7xl max-h-[90vh] w-full mx-4"
+            className="relative flex items-center justify-center w-full h-full px-4 py-16"
             onClick={(e) => e.stopPropagation()}
           >
             <img
               src={getImageSrc(selectedIndex)}
               alt={gallery[selectedIndex]?.caption || `Gallery image ${selectedIndex + 1}`}
-              className="w-full h-full object-contain rounded-lg"
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg"
             />
             
             {/* Caption (if exists) */}
             {gallery[selectedIndex]?.caption && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 rounded-b-lg">
+              <div className="absolute bottom-16 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 rounded-b-lg mx-4">
                 <p className="text-white text-center text-lg">
                   {gallery[selectedIndex].caption}
                 </p>
