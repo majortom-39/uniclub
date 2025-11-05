@@ -18,7 +18,11 @@ async function scrapeAndSummarizeArticle(url, title = '') {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
-    const dom = new JSDOM(response.data, { url });
+    const dom = new JSDOM(response.data, { 
+      url,
+      resources: "usable",
+      pretendToBeVisual: false
+    });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
     if (article && article.textContent) {

@@ -17,7 +17,11 @@ class ArticleScrapingService {
         }
       });
       
-      const dom = new JSDOM(response.data, { url });
+      const dom = new JSDOM(response.data, { 
+        url,
+        resources: "usable",
+        pretendToBeVisual: false
+      });
       const reader = new Readability(dom.window.document);
       const article = reader.parse();
       

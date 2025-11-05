@@ -296,7 +296,9 @@ router.get('/:id/summary', async (req, res) => {
       
       // Use Mozilla Readability with jsdom
       const dom = new JSDOM(response.data, {
-        url: news.originalUrl
+        url: news.originalUrl,
+        resources: "usable",
+        pretendToBeVisual: false
       });
       
       const reader = new Readability(dom.window.document);
