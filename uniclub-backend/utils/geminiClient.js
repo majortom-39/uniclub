@@ -1,23 +1,19 @@
-let cachedModel = null;
+let cachedClient = null;
 
-async function getGeminiModel() {
+const MODEL = 'gemini-2.5-flash-lite';
+
+async function getClient() {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error('GEMINI_API_KEY is not set in the environment');
   }
-
-  if (cachedModel) return cachedModel;
-
+  if (cachedClient) return cachedClient;
   const { GoogleGenAI } = await import('@google/genai');
-  const client = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-  });
-
-  cachedModel = client;
-  return cachedModel;
+  cachedClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return cachedClient;
 }
 
 async function generateText(prompt, options = {}) {
-  const client = await getGeminiModel();
+  const client = await getClient();
 
   const generationConfig = {};
   if (typeof options.maxTokens === 'number') {
@@ -28,19 +24,20 @@ async function generateText(prompt, options = {}) {
   }
 
   const result = await client.models.generateContent({
-    model: 'gemini-2.5-pro',
+    model: MODEL,
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: generationConfig,
+    config: Object.keys(generationConfig).length ? generationConfig : undefined,
   });
 
-  // Flatten text parts from first candidate
   const candidate = result.candidates && result.candidates[0];
   const parts = candidate && candidate.content && candidate.content.parts;
-  if (!parts) return '';
-  return parts.map(p => p.text || '').join('');
+  if (!parts || parts.length === 0) return '';
+
+  // Skip internal thought parts (thinking models), keep only visible output
+  return parts
+    .filter(p => !p.thought)
+    .map(p => p.text || '')
+    .join('');
 }
 
-module.exports = {
-  generateText,
-};
-
+module.exports = { generateText };
