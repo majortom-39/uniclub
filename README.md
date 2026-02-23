@@ -15,7 +15,7 @@
 ## ✨ Features
 
 ### Core Platform
-- 🤖 **AI-Powered News Curation** - Daily automated content selection and summarization using Claude 3.5 Haiku
+- 🤖 **AI-Powered News Curation** - Daily automated content selection and summarization using Google Gemini
 - 💬 **Social Networking** - Posts, comments, likes, follows, and group management
 - 📅 **Event Management** - Create, RSVP, and manage club events with calendar integration
 - 📚 **Resource Library** - Upload and share educational materials
@@ -48,7 +48,7 @@
 - **Node-cron 3.0.3** - Task scheduling and automation
 
 ### AI & External Services
-- **Anthropic Claude 3.5 Haiku** - News curation and summarization
+- **Google Gemini 2.5 Flash Lite** - News curation, summarization, and in-app chatbot
 - **News API** - Tech news content source
 - **Mozilla Readability** - Article content extraction
 
@@ -89,11 +89,11 @@ PORT=5000
 # News API Key (Required for news curation - Get from https://newsapi.org/)
 NEWS_API_KEY=your-news-api-key
 
-# Anthropic API Key (Required for AI curation - Get from https://console.anthropic.com/)
-ANTHROPIC_API_KEY=your-anthropic-api-key
+# Google Gemini API Key (Required for AI curation - Get from https://ai.google.dev/)
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
-**External Services:** [News API](https://newsapi.org/) · [Anthropic](https://console.anthropic.com/) · [MongoDB Atlas](https://mongodb.com/atlas)
+**External Services:** [News API](https://newsapi.org/) · [Google AI Studio](https://ai.google.dev/) · [MongoDB Atlas](https://mongodb.com/atlas)
 
 4. **Start the application**
 
@@ -232,7 +232,7 @@ The application will automatically start both servers:
 The news curation system runs **automatically every day at midnight (Dallas time)** and includes:
 
 1. **Content Fetching** - Retrieves fresh tech articles from News API
-2. **AI Selection** - Claude 3.5 Haiku selects the best 20 articles (prioritizing AI/ML)
+2. **AI Selection** - Google Gemini selects the best 20 articles (prioritizing AI/ML)
 3. **Content Processing** - Full article scraping and AI-powered summarization
 4. **Quality Control** - Positive/negative keyword filtering
 5. **Fallback System** - Previous high-engagement articles if insufficient new content
@@ -297,7 +297,7 @@ Deployed as a **full-stack serverless application** on Vercel's edge network:
 MONGODB_URI=mongodb+srv://...           # Database connection
 JWT_SECRET=your-secret-key              # Auth token signing
 NEWS_API_KEY=your-newsapi-key           # News content source
-ANTHROPIC_API_KEY=your-anthropic-key    # AI curation engine
+GEMINI_API_KEY=your-gemini-api-key      # AI curation engine
 PORT=5000                                # Server port
 NODE_ENV=production                      # Environment mode
 ```
@@ -443,7 +443,7 @@ npx cap build ios      # Build iOS app
 
 ### Common Issues
 - **MongoDB Connection Failed** - Verify MONGODB_URI in .env file
-- **API Keys Invalid** - Check NEWS_API_KEY and ANTHROPIC_API_KEY
+- **API Keys Invalid** - Check NEWS_API_KEY and GEMINI_API_KEY
 - **Build Failures** - Clear node_modules and reinstall: `npm run install-all`
 - **Servers Not Accessible** - Run `npm run check:ports` (Windows) or check backend: `curl http://localhost:5000/api/health`
 
@@ -469,7 +469,7 @@ ISC License - See [LICENSE](LICENSE) file
 
 ## 🙏 Credits
 
-Built for **UTD AI Club** · Powered by **Anthropic Claude** & **News API**
+Built for **UTD AI Club** · Powered by **Google Gemini** & **News API**
 
 ---
 
