@@ -20,7 +20,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.52.0",
+    "@google/genai": "^0.14.0",
     "@mozilla/readability": "^0.6.0",
     "@payloadcms/bundler-webpack": "^1.0.7",
     "@payloadcms/db-mongodb": "^1.7.2",

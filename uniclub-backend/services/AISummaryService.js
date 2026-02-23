@@ -1,12 +1,8 @@
-const Anthropic = require('@anthropic-ai/sdk');
 const { NEWS_CONFIG } = require('../utils/newsConstants');
+const { generateText } = require('../utils/geminiClient');
 
 class AISummaryService {
-  constructor() {
-    this.anthropic = new Anthropic({ 
-      apiKey: process.env.ANTHROPIC_API_KEY 
-    });
-  }
+  constructor() {}
 
   async generateSummary(articleText, title = '') {
     if (!articleText || articleText.length < NEWS_CONFIG.CHAR_LIMITS.MIN_CONTENT_LENGTH) {
@@ -49,31 +45,8 @@ class AISummaryService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async makeAnthropicRequest(requestParams, maxRetries = 3) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        return await this.anthropic.messages.create(requestParams);
-      } catch (error) {
-        const isOverloaded = error.message.includes('overloaded') || error.message.includes('529');
-        const isRateLimit = error.message.includes('rate_limit') || error.message.includes('429');
-        
-        if ((isOverloaded || isRateLimit) && attempt < maxRetries) {
-          const delayMs = Math.pow(2, attempt) * 2000; // Exponential backoff: 4s, 8s, 16s
-          console.log(`⚠️ API ${isOverloaded ? 'overloaded' : 'rate limited'} (attempt ${attempt}/${maxRetries}), waiting ${delayMs/1000}s...`);
-          await this.delay(delayMs);
-          continue;
-        }
-        
-        throw error; // Re-throw if not retryable or max retries reached
-      }
-    }
-  }
-
   async generateMainSummary(articleText) {
-    const summaryMsg = await this.makeAnthropicRequest({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 600, // Increased for more detailed content
-      system: `You are a professional tech journalist writing comprehensive article summaries. Write a neutral, informative summary that captures the key points and technical details.
+    const systemPrompt = `You are a professional tech journalist writing comprehensive article summaries. Write a neutral, informative summary that captures the key points and technical details.
 
 CRITICAL REQUIREMENTS:
 1. Write EXACTLY 2 substantial paragraphs
@@ -85,14 +58,17 @@ CRITICAL REQUIREMENTS:
 7. NO meta-commentary, labels, or prefixes
 8. Output ONLY the two paragraphs
 
-Focus on comprehensive coverage of the news story rather than opinion or audience-specific insights.`,
-      messages: [{ 
-        role: 'user', 
-        content: `Write a comprehensive 2-paragraph summary of this tech article, focusing on technical details and industry context:\n\n${articleText}` 
-      }],
+Focus on comprehensive coverage of the news story rather than opinion or audience-specific insights.`;
+
+    const userPrompt = `Write a comprehensive 2-paragraph summary of this tech article, focusing on technical details and industry context:\n\n${articleText}`;
+    const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+    const responseText = await generateText(fullPrompt, {
+      maxTokens: 600,
+      temperature: 0.3,
     });
-    
-    let summary = summaryMsg.content?.[0]?.text?.trim() || '';
+
+    let summary = responseText?.trim() || '';
     
     // More lenient validation - accept good AI content
     const paragraphs = summary.split('\n\n').filter(p => p.trim().length > 0);
@@ -107,11 +83,7 @@ Focus on comprehensive coverage of the news story rather than opinion or audienc
   }
 
   async generateQuickSummary(articleText) {
-    const quickSummaryMsg = await this.makeAnthropicRequest({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 100,
-      temperature: 0.3,
-      system: `You are a tech news editor writing a concise summary for a news card.
+    const systemPrompt = `You are a tech news editor writing a concise summary for a news card.
 
 CRITICAL REQUIREMENTS:
 1. Your response MUST be EXACTLY ${NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY} characters or less - NOT ONE CHARACTER MORE
@@ -120,20 +92,17 @@ CRITICAL REQUIREMENTS:
 4. Write in a clear, engaging style for AI students
 5. Do NOT use any labels or prefixes
 6. Output ONLY the summary sentence
-7. If you cannot fit the summary in ${NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY} characters, write a shorter version that captures the key point
+7. If you cannot fit the summary in ${NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY} characters, write a shorter version that captures the key point`;
 
-Example (112 chars):
-"Google's new AI model achieves human-level performance in medical diagnosis, using a novel self-supervised learning approach."
+    const userPrompt = `Write a summary of this tech article in EXACTLY ${NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY} characters or less:\n\n${articleText}`;
+    const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
 
-Example (89 chars):
-"New AI model from Google matches human experts in medical diagnosis using self-supervised learning."`,
-      messages: [{ 
-        role: 'user', 
-        content: `Write a summary of this tech article in EXACTLY ${NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY} characters or less:\n\n${articleText}` 
-      }],
+    const responseText = await generateText(fullPrompt, {
+      maxTokens: 100,
+      temperature: 0.3,
     });
     
-    let quickSummary = quickSummaryMsg.content?.[0]?.text?.trim() || '';
+    let quickSummary = responseText?.trim() || '';
     
     // More lenient validation for quick summary - allow slightly longer if good content
     const maxLength = NEWS_CONFIG.CHAR_LIMITS.QUICK_SUMMARY + 20; // Allow 20 chars buffer
@@ -152,11 +121,7 @@ Example (89 chars):
 
 
   async generateWhyItMatters(articleText) {
-    const whyItMattersMsg = await this.makeAnthropicRequest({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 500,
-      temperature: 0.3,
-      system: `You are writing for university AI club members, ML engineers, and tech entrepreneurs. Write a compelling paragraph (750-800 characters) explaining why this technological development matters.
+    const systemPrompt = `You are writing for university AI club members, ML engineers, and tech entrepreneurs. Write a compelling paragraph (750-800 characters) explaining why this technological development matters.
 
 CRITICAL REQUIREMENTS:
 1. Write EXACTLY one paragraph of 750-800 characters
@@ -167,14 +132,17 @@ CRITICAL REQUIREMENTS:
 6. Do NOT include any meta-commentary, labels, or prefixes like "Here's why..." or "This matters because..."
 7. Output ONLY the paragraph content - nothing else
 
-The paragraph should start directly with substantial content about the technology's significance.`,
-      messages: [{ 
-        role: 'user', 
-        content: `Write a detailed "Why It Matters" paragraph (750-800 characters) about this tech development:\n\n${articleText}` 
-      }],
+The paragraph should start directly with substantial content about the technology's significance.`;
+
+    const userPrompt = `Write a detailed "Why It Matters" paragraph (750-800 characters) about this tech development:\n\n${articleText}`;
+    const fullPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
+
+    const responseText = await generateText(fullPrompt, {
+      maxTokens: 500,
+      temperature: 0.3,
     });
     
-    let whyItMatters = whyItMattersMsg.content?.[0]?.text?.trim() || '';
+    let whyItMatters = responseText?.trim() || '';
     
     // More lenient validation for why it matters - allow good content
     const maxLength = NEWS_CONFIG.CHAR_LIMITS.WHY_IT_MATTERS + 100; // Allow 100 chars buffer  

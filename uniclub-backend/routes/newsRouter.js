@@ -5,7 +5,6 @@ const User = require('../models/User');
 const Comment = require('../models/Comment');
 const authenticateToken = require('../middleware/auth');
 const NewsCurationService = require('../services/NewsCurationService');
-const Anthropic = require('@anthropic-ai/sdk');
 const { Readability } = require('@mozilla/readability');
 const { JSDOM } = require('jsdom');
 const axios = require('axios');
@@ -317,9 +316,9 @@ router.get('/:id/summary', async (req, res) => {
       return res.status(400).json({ error: 'Could not extract enough content from the original article.' });
     }
 
-    // Generate new summary with Claude
+    // Generate new summary with Gemini
     try {
-      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const { generateText } = require('../utils/geminiClient');
       const prompt = `You are an AI news summarizer for a university AI club. Please analyze and summarize the following news article in a structured format that includes:
 
 1. Key Points (3-5 bullet points)
@@ -333,13 +332,10 @@ Use clear, concise language and focus on the most important aspects. Do not hall
 ARTICLE:
 ${articleText}`;
 
-      const msg = await anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }],
+      const summary = await generateText(prompt, {
+        maxTokens: 1024,
+        temperature: 0.3,
       });
-      
-      const summary = msg.content?.[0]?.text || msg.content || '';
       
       if (!summary) {
         throw new Error('Failed to generate summary');

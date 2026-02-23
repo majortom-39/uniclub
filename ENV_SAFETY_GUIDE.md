@@ -34,8 +34,8 @@ PORT=5000
 # News API Key (Get from https://newsapi.org/)
 NEWS_API_KEY=your_news_api_key_here
 
-# Anthropic API Key (Get from https://console.anthropic.com/)
-ANTHROPIC_API_KEY=sk-ant-api03-YOUR_ANTHROPIC_KEY_HERE
+# Google Gemini API Key (Get from https://ai.google.dev/)
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # Payload CMS Secret (if needed)
 PAYLOAD_SECRET=your-payload-secret-key-here

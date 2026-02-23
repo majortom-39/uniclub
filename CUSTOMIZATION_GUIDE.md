@@ -288,8 +288,8 @@ PORT=5000
 # News API Key (Get from https://newsapi.org/)
 NEWS_API_KEY=your-news-api-key
 
-# Anthropic API Key (Get from https://console.anthropic.com/)
-ANTHROPIC_API_KEY=sk-ant-api03-YOUR_KEY_HERE
+# Google Gemini API Key (Get from https://ai.google.dev/)
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
 ### Generating Secure JWT Secret
@@ -317,12 +317,11 @@ openssl rand -hex 64
 - Copy API key to `.env`
 - Free tier: 100 requests/day
 
-**2. Anthropic (Claude AI)**
-- Visit: https://console.anthropic.com/
-- Create account
-- Generate API key
-- Add credits ($5+ recommended)
-- Copy key to `.env`
+**2. Google Gemini**
+- Visit: https://ai.google.dev/
+- Create account / project
+- Enable the Gemini API and generate an API key
+- Copy key to `.env` as `GEMINI_API_KEY`
 
 **3. MongoDB Atlas**
 - Visit: https://www.mongodb.com/cloud/atlas

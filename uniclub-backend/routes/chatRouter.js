@@ -3,7 +3,7 @@ const router = express.Router();
 const Chat = require('../models/Chat');
 const News = require('../models/News');
 const authenticateToken = require('../middleware/auth');
-const Anthropic = require('@anthropic-ai/sdk');
+const { generateText } = require('../utils/geminiClient');
 const mongoose = require('mongoose');
 
 // Remove router-level CORS - let global CORS handle everything
@@ -74,8 +74,7 @@ router.post('/:articleId', authenticateToken, async (req, res) => {
     chat.messages.push(userMessage);
     
     // Generate AI response
-    console.log('🤖 Generating AI response...');
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    console.log('🤖 Generating AI response with Gemini...');
     
     const articleContext = `Article: "${article.title}"
 
@@ -103,13 +102,10 @@ Respond like a friendly, knowledgeable person having a casual conversation about
 
 Don't immediately explain everything about the article - respond specifically to what they asked and keep it engaging!`;
 
-    const msg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: chatPrompt }],
+    const aiResponse = await generateText(chatPrompt, {
+      maxTokens: 1024,
+      temperature: 0.7,
     });
-    
-    const aiResponse = msg.content?.[0]?.text || '';
     if (!aiResponse) {
       throw new Error('Failed to generate AI response');
     }

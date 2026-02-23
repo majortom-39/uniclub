@@ -1,10 +1,8 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { generateText } = require('../utils/geminiClient');
 
 class AIRankingService {
   constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    // Gemini client handled via shared utility
   }
 
   /**
@@ -56,18 +54,10 @@ ${JSON.stringify(itemsForAI, null, 2)}
 CRITICAL: Respond with ONLY a JSON array of the top 3 item indices (0-based). No explanations, no extra text, just the array.
 Example: [2, 0, 5]`;
 
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 100,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      });
-
-      const aiResponse = response.content[0].text.trim();
+      const aiResponse = (await generateText(prompt, {
+        maxTokens: 100,
+        temperature: 0.3,
+      })).trim();
       console.log(`🤖 AI ranking response for ${category}:`, aiResponse);
 
       // Parse AI response
@@ -130,18 +120,10 @@ Consider:
 
 CRITICAL: Respond with ONLY the index number (0, 1, or 2). No explanations, no extra text, just the number.`;
 
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 10,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      });
-
-      const aiResponse = response.content[0].text.trim();
+      const aiResponse = (await generateText(prompt, {
+        maxTokens: 10,
+        temperature: 0.3,
+      })).trim();
       console.log(`🤖 AI #1 selection for ${category}:`, aiResponse);
 
       const selectedIndex = parseInt(aiResponse);

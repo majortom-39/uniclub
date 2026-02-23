@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { Readability } = require('@mozilla/readability');
 const { JSDOM } = require('jsdom');
-const Anthropic = require('@anthropic-ai/sdk');
+const { generateText } = require('./geminiClient');
 
 const MIN_CONTENT_LENGTH = 200;
 const MAX_CHARS_QUICK = 130;
@@ -46,13 +46,8 @@ async function scrapeAndSummarizeArticle(url, title = '') {
   }
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    
     // Generate main summary
-    const summaryMsg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 400,
-      system: `You are a passionate tech writer for a university AI club app. Your audience is AI students and practitioners who want clear, engaging tech updates.
+    const systemPrompt = `You are a passionate tech writer for a university AI club app. Your audience is AI students and practitioners who want clear, engaging tech updates.
 
 CRITICAL REQUIREMENTS:
 1. Write EXACTLY 2 paragraphs
@@ -61,15 +56,16 @@ CRITICAL REQUIREMENTS:
 4. Second paragraph: Focus on implications for AI students/practitioners
 5. Use clear, engaging language
 6. NO meta-commentary, labels, or prefixes
-7. Output ONLY the two paragraphs
+7. Output ONLY the two paragraphs`;
 
-Example:
-"OpenAI has unveiled GPT-4V, a multimodal model that can understand and analyze both text and images. The model achieves state-of-the-art performance on visual reasoning tasks while maintaining robust safety measures.
+    const userPrompt = `Write a 2-paragraph summary of this tech article:\n\n${articleText}`;
+    const fullSummaryPrompt = `${systemPrompt}\n\n---\n\n${userPrompt}`;
 
-This advancement demonstrates the growing capabilities of foundation models in handling multiple data types. For AI students, it highlights the importance of understanding multimodal architectures and raises interesting questions about cross-modal learning and representation."`,
-      messages: [{ role: 'user', content: `Write a 2-paragraph summary of this tech article:\n\n${articleText}` }],
+    const summaryText = await generateText(fullSummaryPrompt, {
+      maxTokens: 400,
+      temperature: 0.3,
     });
-    let summary = summaryMsg.content?.[0]?.text?.trim() || '';
+    let summary = summaryText?.trim() || '';
     
     // Validate summary structure
     const paragraphs = summary.split('\n\n').filter(p => p.trim().length > 0);
@@ -81,11 +77,7 @@ This advancement demonstrates the growing capabilities of foundation models in h
     }
 
     // Generate quick summary for news card
-    const quickSummaryMsg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 100,
-      temperature: 0.3,
-      system: `You are a tech news editor writing a concise summary for a news card.
+    const quickSystemPrompt = `You are a tech news editor writing a concise summary for a news card.
 
 CRITICAL REQUIREMENTS:
 1. Your response MUST be EXACTLY ${MAX_CHARS_QUICK} characters or less - NOT ONE CHARACTER MORE
@@ -94,32 +86,33 @@ CRITICAL REQUIREMENTS:
 4. Write in a clear, engaging style for AI students
 5. Do NOT use any labels or prefixes
 6. Output ONLY the summary sentence
-7. If you cannot fit the summary in ${MAX_CHARS_QUICK} characters, write a shorter version that captures the key point
+7. If you cannot fit the summary in ${MAX_CHARS_QUICK} characters, write a shorter version that captures the key point`;
 
-Example (112 chars):
-"Google's new AI model achieves human-level performance in medical diagnosis, using a novel self-supervised learning approach."
+    const quickUserPrompt = `Write a summary of this tech article in EXACTLY ${MAX_CHARS_QUICK} characters or less:\n\n${articleText}`;
+    const fullQuickPrompt = `${quickSystemPrompt}\n\n---\n\n${quickUserPrompt}`;
 
-Example (89 chars):
-"New AI model from Google matches human experts in medical diagnosis using self-supervised learning."`,
-      messages: [{ role: 'user', content: `Write a summary of this tech article in EXACTLY ${MAX_CHARS_QUICK} characters or less:\n\n${articleText}` }],
+    const quickSummaryText = await generateText(fullQuickPrompt, {
+      maxTokens: 100,
+      temperature: 0.3,
     });
-    let quickSummary = quickSummaryMsg.content?.[0]?.text?.trim() || '';
+    let quickSummary = quickSummaryText?.trim() || '';
     
     // Validate quick summary length
     if (!quickSummary || quickSummary.length > MAX_CHARS_QUICK) {
-      console.log(`⚠️ [scrapeAndSummarize] Quick summary too long (${quickSummary.length} chars), retrying with stricter prompt`);
+      console.log(`⚠️ [scrapeAndSummarize] Quick summary too long (${quickSummary?.length || 0} chars), retrying with stricter prompt`);
       // Retry with stricter prompt
-      const retryMsg = await anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 100,
-        temperature: 0.1,
-        system: `You are a tech news editor. Your ONLY task is to write a summary in EXACTLY ${MAX_CHARS_QUICK} characters or less.
+      const retrySystemPrompt = `You are a tech news editor. Your ONLY task is to write a summary in EXACTLY ${MAX_CHARS_QUICK} characters or less.
 CRITICAL: Count every character (including spaces and punctuation) and ensure the total is ${MAX_CHARS_QUICK} or less.
 If you cannot fit the main point in ${MAX_CHARS_QUICK} characters, write a shorter version that captures the essence.
-Output ONLY the summary - no other text.`,
-        messages: [{ role: 'user', content: `Rewrite this summary in ${MAX_CHARS_QUICK} characters or less:\n\n${quickSummary}` }],
+Output ONLY the summary - no other text.`;
+      const retryUserPrompt = `Rewrite this summary in ${MAX_CHARS_QUICK} characters or less:\n\n${quickSummary || ''}`;
+      const fullRetryPrompt = `${retrySystemPrompt}\n\n---\n\n${retryUserPrompt}`;
+
+      const retryText = await generateText(fullRetryPrompt, {
+        maxTokens: 100,
+        temperature: 0.1,
       });
-      quickSummary = retryMsg.content?.[0]?.text?.trim() || '';
+      quickSummary = retryText?.trim() || '';
       
       // If still too long, truncate intelligently at sentence boundary
       if (quickSummary.length > MAX_CHARS_QUICK) {
@@ -137,12 +130,8 @@ Output ONLY the summary - no other text.`,
     }
 
     // Generate why it matters section
-    const whyItMattersMsg = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
-      max_tokens: 500,
-      temperature: 0.3,
-      system: `You are writing for university AI club members, ML engineers, and tech entrepreneurs. Write a compelling paragraph (750-800 characters) explaining why this technological development matters.
-
+    const whySystemPrompt = `You are writing for university AI club members, ML engineers, and tech entrepreneurs. Write a compelling paragraph (750-800 characters) explaining why this technological development matters.
+ 
 CRITICAL REQUIREMENTS:
 1. Write EXACTLY one paragraph of 750-800 characters
 2. Focus on practical relevance for AI students and tech practitioners
@@ -151,11 +140,16 @@ CRITICAL REQUIREMENTS:
 5. Cover technical significance, industry trends, and future implications
 6. Do NOT include any meta-commentary, labels, or prefixes like "Here's why..." or "This matters because..."
 7. Output ONLY the paragraph content - nothing else
+ 
+The paragraph should start directly with substantial content about the technology's significance.`;
+    const whyUserPrompt = `Write a detailed "Why It Matters" paragraph (750-800 characters) about this tech development:\n\n${articleText}`;
+    const fullWhyPrompt = `${whySystemPrompt}\n\n---\n\n${whyUserPrompt}`;
 
-The paragraph should start directly with substantial content about the technology's significance.`,
-      messages: [{ role: 'user', content: `Write a detailed "Why It Matters" paragraph (750-800 characters) about this tech development:\n\n${articleText}` }],
+    const whyText = await generateText(fullWhyPrompt, {
+      maxTokens: 500,
+      temperature: 0.3,
     });
-    let whyItMatters = whyItMattersMsg.content?.[0]?.text?.trim() || '';
+    let whyItMatters = whyText?.trim() || '';
     // Validate why it matters length
     if (!whyItMatters || whyItMatters.length > MAX_CHARS_WHY) {
       console.log(`⚠️ [scrapeAndSummarize] Why It Matters too long (${whyItMatters.length} chars), truncating at sentence boundary`);

@@ -1,12 +1,9 @@
-const Anthropic = require('@anthropic-ai/sdk');
 const { NEWS_CONFIG } = require('../utils/newsConstants');
 const ArticleFilterService = require('./ArticleFilterService');
+const { generateText } = require('../utils/geminiClient');
 
 class AISelectionService {
   constructor() {
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
     this.maxRetries = 3;
     this.baseDelay = 1000; // 1 second
   }
@@ -89,16 +86,16 @@ Published: ${new Date(article.publishedAt).toLocaleDateString()}
 ---`
       )).join('\n');
 
-      const response = await this.makeAnthropicRequest({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 200,
+      const systemPrompt = 'You are a precise tech news curator for students. Respond with ONLY a comma-separated list of article IDs. Prioritize AI/ML content and exclude any war, military, political, or violent content. Focus on educational value.';
+      const fullPrompt = `${systemPrompt}\n\n---\n\n${prompt}`;
+
+      const responseText = await this.makeGeminiRequest(fullPrompt, {
+        maxTokens: 200,
         temperature: 0.3,
-        system: 'You are a precise tech news curator for students. Respond with ONLY a comma-separated list of article IDs. Prioritize AI/ML content and exclude any war, military, political, or violent content. Focus on educational value.',
-        messages: [{ role: 'user', content: prompt }]
       });
 
       // Parse the response to get selected article IDs
-      const selectedIds = response.content[0].text
+      const selectedIds = responseText
         .trim()
         .split(',')
         .map(id => parseInt(id.trim()))
@@ -183,15 +180,15 @@ Published: ${new Date(article.publishedAt).toLocaleDateString()}
 ---`
       )).join('\n');
 
-      const response = await this.makeAnthropicRequest({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 100,
+      const systemPrompt = `You are selecting ${needed} educational articles from previous batch. Exclude war, military, political, or violent content. Respond with ONLY comma-separated IDs.`;
+      const fullPrompt = `${systemPrompt}\n\n---\n\n${prompt}`;
+
+      const responseText = await this.makeGeminiRequest(fullPrompt, {
+        maxTokens: 100,
         temperature: 0.3,
-        system: `You are selecting ${needed} educational articles from previous batch. Exclude war, military, political, or violent content. Respond with ONLY comma-separated IDs.`,
-        messages: [{ role: 'user', content: prompt }]
       });
 
-      const selectedIds = response.content[0].text
+      const selectedIds = responseText
         .trim()
         .split(',')
         .map(id => parseInt(id.trim()))
@@ -209,11 +206,11 @@ Published: ${new Date(article.publishedAt).toLocaleDateString()}
     }
   }
 
-  async makeAnthropicRequest(requestConfig, retryCount = 0) {
+  async makeGeminiRequest(prompt, options = {}, retryCount = 0) {
     try {
-      return await this.anthropic.messages.create(requestConfig);
+      return await generateText(prompt, options);
     } catch (error) {
-      console.error(`❌ Anthropic API error (attempt ${retryCount + 1}):`, error.message);
+      console.error(`❌ Gemini API error (attempt ${retryCount + 1}):`, error.message);
       
       // Check if we should retry
       if (retryCount < this.maxRetries && this.shouldRetry(error)) {
@@ -228,19 +225,24 @@ Published: ${new Date(article.publishedAt).toLocaleDateString()}
   }
 
   shouldRetry(error) {
-    // Retry on rate limits, temporary server errors, and network issues
-    const retryableErrors = [
-      'rate_limit_error',
-      'api_error',
-      'overloaded_error',
+    // Retry on common transient errors (rate limits, server errors, network issues)
+    const message = (error.message || '').toLowerCase();
+    const status = error.status || error.code;
+
+    if (status === 429 || status === 503 || status === 500) {
+      return true;
+    }
+
+    const retryableHints = [
+      'rate limit',
+      'quota',
+      'temporarily unavailable',
+      'try again',
       'timeout',
-      'network_error'
+      'network error',
     ];
-    
-    return retryableErrors.some(type => 
-      error.message?.toLowerCase().includes(type) || 
-      error.type?.toLowerCase().includes(type)
-    );
+
+    return retryableHints.some(hint => message.includes(hint));
   }
 
   sleep(ms) {
